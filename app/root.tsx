@@ -1,28 +1,23 @@
 import {
   Links,
+  LiveReload,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
+  isRouteErrorResponse,
+  useRouteError,
 } from "@remix-run/react";
 import type { LinksFunction } from "@remix-run/node";
-
-import "./tailwind.css";
+import "~/styles/app.css";
+import { Navbar } from "~/components/navbar";
 
 export const links: LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-  },
+  { rel: "preconnect", href: "https://rsms.me/" },
+  { rel: "stylesheet", href: "https://rsms.me/inter/inter.css" },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export default function App() {
   return (
     <html lang="en">
       <head>
@@ -31,15 +26,65 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
-        {children}
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <div className="relative flex min-h-screen flex-col">
+          <Navbar />
+          <div className="flex-1">
+            <Outlet />
+          </div>
+        </div>
         <ScrollRestoration />
         <Scripts />
+        <LiveReload />
       </body>
     </html>
   );
 }
 
-export default function App() {
-  return <Outlet />;
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <html lang="es" className="h-full">
+        <head>
+          <title>{`Error ${error.status}`}</title>
+          <Meta />
+          <Links />
+        </head>
+        <body className="min-h-full">
+          <div className="min-h-screen bg-background flex flex-col justify-center items-center">
+            <div className="rounded-lg bg-card p-8 text-center shadow-xl">
+              <h1 className="mb-4 text-4xl font-bold text-destructive">
+                {error.status} {error.statusText}
+              </h1>
+              <p className="text-muted-foreground">Lo sentimos, ha ocurrido un error.</p>
+            </div>
+          </div>
+          <Scripts />
+        </body>
+      </html>
+    );
+  }
+
+  return (
+    <html lang="es" className="h-full">
+      <head>
+        <title>Error Inesperado</title>
+        <Meta />
+        <Links />
+      </head>
+      <body className="min-h-full">
+        <div className="min-h-screen bg-background flex flex-col justify-center items-center">
+          <div className="rounded-lg bg-card p-8 text-center shadow-xl">
+            <h1 className="mb-4 text-4xl font-bold text-destructive">
+              Error Inesperado
+            </h1>
+            <p className="text-muted-foreground">Lo sentimos, ha ocurrido un error.</p>
+          </div>
+        </div>
+        <Scripts />
+      </body>
+    </html>
+  );
 }
