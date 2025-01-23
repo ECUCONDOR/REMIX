@@ -141,6 +141,44 @@ export default function Dashboard() {
               </div>
             </Card>
           </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
+            <Link to="/exchange">
+              <Card variant="blur" className="p-6 hover:bg-blue-900/20 transition-colors cursor-pointer">
+                <div className="flex items-center space-x-4">
+                  <ArrowUpDown className="h-8 w-8 text-blue-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Realizar Intercambio</h3>
+                    <p className="text-gray-400">Intercambia entre USD, ARS y BRL</p>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+
+            <Link to="/send">
+              <Card variant="blur" className="p-6 hover:bg-blue-900/20 transition-colors cursor-pointer">
+                <div className="flex items-center space-x-4">
+                  <SendHorizontal className="h-8 w-8 text-green-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Enviar Dinero</h3>
+                    <p className="text-gray-400">Transfiere a otros usuarios</p>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+
+            <Link to="/history">
+              <Card variant="blur" className="p-6 hover:bg-blue-900/20 transition-colors cursor-pointer">
+                <div className="flex items-center space-x-4">
+                  <History className="h-8 w-8 text-purple-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Historial</h3>
+                    <p className="text-gray-400">Ver transacciones anteriores</p>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          </div>
         </main>
       </div>
     </ProtectedRoute>

@@ -9,6 +9,9 @@ module.exports = {
     "@firebase/auth",
     "@firebase/firestore",
     /^remix-utils.*/,
+    /^lucide-react.*/,
+    "lucide-react",
+    "lucide-react/dist/esm/icons/*",
     // If you installed is-ip optional dependency you will need these too
     "is-ip",
     "ip-regex",

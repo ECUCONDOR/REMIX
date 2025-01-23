@@ -1,8 +1,21 @@
-import { getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, query, where, DocumentData } from 'firebase/firestore';
+import { getFirestore, collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc, query, where, DocumentData, Timestamp, addDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { firebaseApp } from './client';
 
 // Initialize Firestore
 export const db = getFirestore(firebaseApp);
+
+let storage;
+
+try {
+  if (typeof window !== 'undefined') {
+    storage = getStorage(firebaseApp);
+  }
+} catch (error) {
+  console.error('Error initializing Firebase Storage:', error);
+}
+
+export { storage };
 
 // Tipos de datos
 export interface Balance {
@@ -17,6 +30,19 @@ export interface ExchangeRate {
   USD_ARS: number;
   USD_BRL: number;
   ARS_BRL: number;
+  updatedAt: Date;
+}
+
+export interface Transaction {
+  userId: string;
+  amount: number;
+  fromCurrency: string;
+  toCurrency: string;
+  rate: number;
+  commission: number;
+  status: 'pending' | 'completed' | 'rejected';
+  receiptUrl?: string;
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -128,3 +154,54 @@ export const updateUserBalance = async (userId: string, newBalance: Partial<Bala
 export const updateExchangeRates = async (rates: Partial<ExchangeRate>) => {
   return updateDocument('exchangeRates', 'current', rates);
 };
+
+// Funciones de transacciones
+export async function createTransaction(transaction: Omit<Transaction, 'createdAt' | 'updatedAt'>) {
+  try {
+    const docRef = await addDoc(collection(db, 'transactions'), {
+      ...transaction,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+    return { id: docRef.id, success: true };
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    return { success: false, error };
+  }
+}
+
+export async function uploadReceipt(file: File, userId: string): Promise<{ url: string; path: string } | null> {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}_${Date.now()}.${fileExt}`;
+    const filePath = `receipts/${fileName}`;
+    const storageRef = ref(storage, filePath);
+    
+    const uploadTask = uploadBytesResumable(storageRef, file);
+    
+    return new Promise((resolve, reject) => {
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log('Upload progress:', progress);
+        },
+        (error) => {
+          console.error('Error uploading file:', error);
+          reject(error);
+        },
+        async () => {
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve({ url: downloadURL, path: filePath });
+          } catch (error) {
+            console.error('Error getting download URL:', error);
+            reject(error);
+          }
+        }
+      );
+    });
+  } catch (error) {
+    console.error('Error in uploadReceipt:', error);
+    return null;
+  }
+}

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "@remix-run/react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "@remix-run/react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { firebaseAuth } from "~/lib/firebase/client";
 import { Button } from "~/components/ui/button";
@@ -8,10 +8,23 @@ import { Card } from "~/components/ui/card";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo") || "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Si ya está autenticado, redirigir
+    const unsubscribe = firebaseAuth.onAuthStateChanged((user) => {
+      if (user) {
+        navigate(decodeURIComponent(redirectTo));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate, redirectTo]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,11 +33,10 @@ export default function Login() {
 
     try {
       await signInWithEmailAndPassword(firebaseAuth, email, password);
-      navigate("/dashboard");
-    } catch (err) {
+      // La redirección se manejará en el useEffect
+    } catch (err: any) {
       console.error("Error en login:", err);
       setError("Error al iniciar sesión. Verifica tus credenciales.");
-    } finally {
       setLoading(false);
     }
   };

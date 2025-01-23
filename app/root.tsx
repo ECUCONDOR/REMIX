@@ -13,6 +13,7 @@ import { json, type LinksFunction, type LoaderFunctionArgs } from "@remix-run/no
 import { getSession } from "~/utils/auth.server";
 import "~/styles/app.css";
 import "./tailwind.css";
+import "./styles/animations.css";
 import { Navbar } from "~/components/navbar";
 
 export const links: LinksFunction = () => [
