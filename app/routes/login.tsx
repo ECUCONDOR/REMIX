@@ -1,100 +1,114 @@
-import { useState } from 'react';
-import { Form, useActionData, useNavigation } from '@remix-run/react';
-import { json, redirect } from '@remix-run/node';
-import type { ActionFunction } from '@remix-run/node';
-import * as Label from '@radix-ui/react-label';
+import { useNavigate } from "@remix-run/react";
+import { useState } from "react";
+import { supabase } from "~/utils/supabase.client";
 
-export const action: ActionFunction = async ({ request }) => {
-  const formData = await request.formData();
-  const email = formData.get('email');
-  const password = formData.get('password');
+export default function LoginRoute() {
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Aquí implementarías la lógica de autenticación real
-  try {
-    // TODO: Implementar autenticación con Supabase
-    return redirect('/dashboard');
-  } catch (error) {
-    return json({ error: 'Credenciales inválidas' }, { status: 400 });
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          setError("Credenciales inválidas. Verifica tu email y contraseña.");
+        } else {
+          setError("Error al iniciar sesión. Inténtalo de nuevo.");
+        }
+        return;
+      }
+
+      navigate("/dashboard");
+    } catch (err) {
+      setError("Error interno del servidor");
+    } finally {
+      setLoading(false);
+    }
   }
-};
-
-export default function Login() {
-  const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === 'submitting';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+    <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+        <h1 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight">
           Iniciar Sesión
-        </h2>
+        </h1>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <Form method="post" className="space-y-6">
-            <div>
-              <Label.Root
-                className="block text-sm font-medium text-gray-700"
-                htmlFor="email"
-              >
-                Correo electrónico
-              </Label.Root>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                />
-              </div>
+      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium leading-6"
+            >
+              Email
+            </label>
+            <div className="mt-2">
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
             </div>
+          </div>
 
-            <div>
-              <Label.Root
-                className="block text-sm font-medium text-gray-700"
-                htmlFor="password"
-              >
-                Contraseña
-              </Label.Root>
-              <div className="mt-1">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                />
-              </div>
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium leading-6"
+            >
+              Contraseña
+            </label>
+            <div className="mt-2">
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
             </div>
+          </div>
 
-            {actionData?.error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="flex">
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">
-                      {actionData.error}
-                    </h3>
-                  </div>
+          {error && (
+            <div className="rounded-md bg-destructive/15 p-3">
+              <div className="flex">
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-destructive">
+                    {error}
+                  </h3>
                 </div>
               </div>
-            )}
-
-            <div>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-              </button>
             </div>
-          </Form>
-        </div>
+          )}
+
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex w-full justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-semibold leading-6 text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50"
+            >
+              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

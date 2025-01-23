@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { getSupabaseBrowserClient } from "~/lib/supabase/client";
 
 export const loader = async ({ request }: { request: Request }) => {
-  const { session } = await requireAuth(request);
+  const { session, response } = await requireAuth(request);
   
   if (!session) {
     throw new Error("No session found");
@@ -44,9 +44,12 @@ export const loader = async ({ request }: { request: Request }) => {
     ARSBRL: "0.0038",
   };
 
+  const headers = response.headers;
   return json({ 
     email: session.user.email,
     rates: formattedRates
+  }, {
+    headers
   });
 };
 

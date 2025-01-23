@@ -1,71 +1,96 @@
-import { createServerClient } from '@supabase/auth-helpers-remix';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient, type CookieOptions } from '@supabase/auth-helpers-remix';
 import { redirect } from '@remix-run/node';
-import type { Session } from '@supabase/supabase-js';
+import { getSession, commitSession, destroySession } from './cookies.server';
 
-// Use development defaults if environment variables are not set
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xyzcompany.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdHBrdnBzc2NqaHp2YmNqeHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDU4NzU1NjgsImV4cCI6MjAyMTQ1MTU2OH0.gqsM_hKwxqjw3zwk7FNkbX9pqZB9FFOZXLhPwDnLD_M';
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set');
+}
+
+export const getSupabaseClient = (request: Request, response?: Response) => {
+  return createServerClient(supabaseUrl, supabaseKey, {
+    request,
+    response: response ?? new Response(),
+    cookieOptions: {
+      name: '__supabase_session',
+      httpOnly: true,
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    }
+  });
+};
+
+export async function createUserSession({
+  request,
+  userId,
+  remember,
+  redirectTo,
+}: {
+  request: Request;
+  userId: string;
+  remember: boolean;
+  redirectTo: string;
+}) {
+  const session = await getSession(request);
+  session.set('userId', userId);
+
+  return redirect(redirectTo, {
+    headers: {
+      'Set-Cookie': await commitSession(session, {
+        maxAge: remember ? 60 * 60 * 24 * 7 : undefined,
+      }),
+    },
+  });
+}
+
+export async function getUserSession(request: Request) {
+  return getSession(request);
+}
+
+export async function getUserId(request: Request): Promise<string | undefined> {
+  const session = await getUserSession(request);
+  return session.get('userId');
+}
+
+export async function getUser(request: Request) {
+  const userId = await getUserId(request);
+  if (!userId) return null;
+  return { id: userId };
+}
 
 export async function requireAuth(request: Request) {
   const response = new Response();
-  const supabaseClient = createServerClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    { request, response }
-  );
-
-  const {
-    data: { session },
-  } = await supabaseClient.auth.getSession();
+  const supabase = getSupabaseClient(request, response);
+  const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
     throw redirect('/login');
   }
 
-  return {
-    supabase: supabaseClient,
-    headers: response.headers,
-    user: session.user,
-  };
+  return { session, response };
 }
 
-export async function getSession(request: Request): Promise<Session | null> {
+async function logout(request: Request) {
   const response = new Response();
-  const supabaseClient = createServerClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    { request, response }
-  );
-
-  const {
-    data: { session },
-  } = await supabaseClient.auth.getSession();
-
-  return session;
-}
-
-export async function signOut(request: Request) {
-  const response = new Response();
-  const supabaseClient = createServerClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    { request, response }
-  );
-
-  const { error } = await supabaseClient.auth.signOut();
-
-  if (error) {
-    console.error('Error signing out:', error.message);
-    throw new Error('Error signing out');
-  }
-
-  return redirect('/login', {
-    headers: response.headers,
+  const supabase = getSupabaseClient(request, response);
+  await supabase.auth.signOut();
+  
+  const session = await getSession(request);
+  return redirect('/', {
+    headers: {
+      'Set-Cookie': await destroySession(session),
+    },
   });
+}
+
+export async function destroyUserSession(request: Request, redirectTo: string) {
+  return await logout(request);
+}
+
+export async function getSupabaseSession(request: Request) {
+  const supabase = getSupabaseClient(request);
+  return await supabase.auth.getSession();
 }
