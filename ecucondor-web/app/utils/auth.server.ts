@@ -35,7 +35,7 @@ export async function createUserSession({
     headers: {
       "Set-Cookie": await sessionStorage.commitSession(session, {
         maxAge: remember
-          ? 60 * 60 * 24 * 7 // 7 días
+          ? 60 * 60 * 24 * 7
           : undefined,
       }),
     },
@@ -75,24 +75,11 @@ async function logout(request: Request) {
 }
 
 export async function destroyUserSession(request: Request, redirectTo: string) {
-  try {
-    await firebaseAuth.signOut();
-  } catch (error) {
-    console.error("Error al cerrar sesión en Firebase:", error);
-  }
+  await firebaseAuth.signOut();
 
   return redirect(redirectTo, {
     headers: {
       "Set-Cookie": await logout(request),
-    },
-  });
-}
-
-export async function signOut(request: Request) {
-  const session = await getUserSession(request);
-  return redirect("/login", {
-    headers: {
-      "Set-Cookie": await sessionStorage.destroySession(session),
     },
   });
 }

@@ -9,9 +9,10 @@ interface StatCardProps {
     value: number;
     label: string;
   };
+  content?: React.ReactNode;
 }
 
-export function StatCard({ title, value, icon, trend }: StatCardProps) {
+export function StatCard({ title, value, icon, trend, content }: StatCardProps) {
   return (
     <Card variant="blur">
       <div className="p-6">
@@ -30,7 +31,8 @@ export function StatCard({ title, value, icon, trend }: StatCardProps) {
         </div>
         <div className="mt-4">
           <p className="text-blue-200">{title}</p>
-          <p className="text-2xl font-semibold text-white mt-1">{value}</p>
+          {!content && <p className="text-2xl font-semibold text-white mt-1">{value}</p>}
+          {content}
         </div>
       </div>
     </Card>

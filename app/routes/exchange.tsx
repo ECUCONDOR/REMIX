@@ -10,7 +10,9 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { AlertCircle, Copy, Upload } from 'lucide-react';
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { useState, useEffect } from 'react';
-import { getSupabaseBrowserClient } from "~/lib/supabase/client";
+import { firebaseAuth } from "~/lib/firebase/client";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { useNavigate } from "@remix-run/react";
 
 export const loader = async ({ request }: { request: Request }) => {
   const { session, response } = await requireAuth(request);
@@ -55,34 +57,34 @@ export const loader = async ({ request }: { request: Request }) => {
 
 export default function Exchange() {
   const { email, rates } = useLoaderData<typeof loader>();
-  const [supabase] = useState(() => {
-    if (typeof window === 'undefined') return null;
-    return getSupabaseBrowserClient(
-      window.env.SUPABASE_URL,
-      window.env.SUPABASE_ANON_KEY
-    );
-  });
-  const revalidator = useRevalidator();
-
-  // Constants
-  const COMMISSION_RATE = 0.05;
-  const SMALL_AMOUNT_LIMIT = 15;
-  const SMALL_AMOUNT_DISCOUNT = 0.50;
-
-  // State
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [fromCurrency, setFromCurrency] = useState("USD");
   const [toCurrency, setToCurrency] = useState("ARS");
   const [includeCommission, setIncludeCommission] = useState(false);
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<{
     error: string | null;
     success: string | null;
   }>({ error: null, success: null });
+  const revalidator = useRevalidator();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        navigate("/login");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,7 +105,7 @@ export default function Exchange() {
   };
 
   const handleFileUpload = async () => {
-    if (!selectedFile || !supabase) {
+    if (!selectedFile || !user) {
       setUploadStatus({
         error: "No se pudo inicializar el cliente de Supabase o no se seleccionó ningún archivo.",
         success: null
@@ -137,9 +139,9 @@ export default function Exchange() {
       const fileName = `${email.replace('@', '_')}_${Date.now()}.${fileExt}`;
       const filePath = `receipts/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('b80476d9-b28a-477e-a6d1-f0ccbc131ae5')
-        .upload(filePath, selectedFile);
+      const { error: uploadError } = await firebaseAuth.storage()
+        .ref(filePath)
+        .put(selectedFile);
 
       if (uploadError) {
         console.error('Error subiendo comprobante:', uploadError);
@@ -152,9 +154,9 @@ export default function Exchange() {
 
       setUploadProgress(80);
 
-      const { error: dbError } = await supabase
-        .from('transactions')
-        .insert({
+      const { error: dbError } = await firebaseAuth.firestore()
+        .collection('transactions')
+        .add({
           user_id: email,
           type: 'exchange',
           amount: parseFloat(amount),
@@ -228,9 +230,9 @@ export default function Exchange() {
     exchangeAmount = numAmount * rate;
 
     if (includeCommission) {
-      const commission = numAmount <= SMALL_AMOUNT_LIMIT ? 
-        COMMISSION_RATE * SMALL_AMOUNT_DISCOUNT : 
-        COMMISSION_RATE;
+      const commission = numAmount <= 15 ? 
+        0.05 * 0.50 : 
+        0.05;
       exchangeAmount = exchangeAmount * (1 - commission);
     }
 
@@ -315,7 +317,7 @@ export default function Exchange() {
                   className="border-blue-700"
                 />
                 <Label htmlFor="commission" className="text-blue-200">
-                  Tasas de Transacción, Administrativas, Conversión, Plataforma ({COMMISSION_RATE * 100}%)
+                  Tasas de Transacción, Administrativas, Conversión, Plataforma (5%)
                 </Label>
               </div>
 

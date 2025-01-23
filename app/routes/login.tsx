@@ -1,115 +1,90 @@
-import { useNavigate } from "@remix-run/react";
 import { useState } from "react";
-import { supabase } from "~/utils/supabase.client";
+import { useNavigate } from "@remix-run/react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { firebaseAuth } from "~/lib/firebase/client";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Card } from "~/components/ui/card";
 
-export default function LoginRoute() {
+export default function Login() {
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-
-    const formData = new FormData(event.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          setError("Credenciales inválidas. Verifica tu email y contraseña.");
-        } else {
-          setError("Error al iniciar sesión. Inténtalo de nuevo.");
-        }
-        return;
-      }
-
+      await signInWithEmailAndPassword(firebaseAuth, email, password);
       navigate("/dashboard");
     } catch (err) {
-      setError("Error interno del servidor");
+      console.error("Error en login:", err);
+      setError("Error al iniciar sesión. Verifica tus credenciales.");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-        <h1 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight">
-          Iniciar Sesión
-        </h1>
-      </div>
+    <div className="min-h-screen bg-[#0f1421] flex items-center justify-center p-4">
+      <Card className="w-full max-w-md p-6 bg-[#1a2332] border-blue-500/20">
+        <h2 className="text-2xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
+        
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded p-3 mb-4 text-red-400">
+            {error}
+          </div>
+        )}
 
-      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium leading-6"
-            >
+            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
               Email
             </label>
-            <div className="mt-2">
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-            </div>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full bg-[#0f1421] border-blue-500/20 focus:border-blue-400"
+            />
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium leading-6"
-            >
+            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
               Contraseña
             </label>
-            <div className="mt-2">
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              />
-            </div>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full bg-[#0f1421] border-blue-500/20 focus:border-blue-400"
+            />
           </div>
 
-          {error && (
-            <div className="rounded-md bg-destructive/15 p-3">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-destructive">
-                    {error}
-                  </h3>
-                </div>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
+                Ingresando...
               </div>
-            </div>
-          )}
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-semibold leading-6 text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-50"
-            >
-              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
-            </button>
-          </div>
+            ) : (
+              "Ingresar"
+            )}
+          </Button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -1,91 +1,86 @@
 import { Link, useNavigate } from "@remix-run/react";
-import { Bell, Search, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
-import { supabase } from "~/utils/supabase.client";
-import type { User } from "@supabase/supabase-js";
+import { firebaseAuth } from "~/lib/firebase/client";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { Button } from "./ui/button";
 
 export function Navbar() {
-  const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
     });
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
+    try {
+      await signOut(firebaseAuth);
+      navigate("/login");
+    } catch (error) {
       console.error("Error al cerrar sesión:", error);
-      return;
     }
-    
-    navigate("/");
   };
 
-  let userInitials = "";
-  if (user?.email) {
-    const nameParts = user.email.split('@')[0].split('.');
-    userInitials = nameParts.map(part => part.charAt(0).toUpperCase()).join('');
-    if (userInitials.length > 2) {
-      userInitials = userInitials.substring(0, 2);
-    }
+  if (loading) {
+    return <div className="h-16 bg-[#1a2332] border-b border-blue-500/20"></div>;
   }
 
   return (
-    <nav className="border-b border-border bg-card">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button className="p-2 hover:bg-accent rounded-lg md:hidden">
-              <Menu className="w-5 h-5 text-muted-foreground" />
-            </button>
-            <Link to="/" className="text-xl font-bold text-foreground">
+    <nav className="bg-[#1a2332] border-b border-blue-500/20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          <div className="flex items-center">
+            <Link to="/" className="text-xl font-bold text-white">
               ECUCONDOR
             </Link>
+            
+            {user && (
+              <div className="ml-10 flex items-baseline space-x-4">
+                <Link
+                  to="/dashboard"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/exchange"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Cambio
+                </Link>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="relative hidden md:block">
-              <input
-                type="search"
-                placeholder="Buscar..."
-                className="pl-10 pr-4 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            </div>
-
+          <div className="flex items-center">
             {user ? (
-              <>
-                <button className="relative p-2 rounded-full hover:bg-accent">
-                  <Bell className="w-5 h-5 text-muted-foreground" />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center hover:bg-primary/20"
-                >
-                  <span className="text-sm font-medium text-primary">{userInitials}</span>
-                </button>
-              </>
-            ) : (
               <div className="flex items-center space-x-4">
-                <Link to="/login" className="text-sm font-medium text-foreground hover:underline">
-                  Login
+                <span className="text-gray-300 text-sm">{user.email}</span>
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  className="text-blue-200 border-blue-700 hover:bg-blue-700/50"
+                >
+                  Cerrar Sesión
+                </Button>
+              </div>
+            ) : (
+              <div className="space-x-4">
+                <Link to="/login">
+                  <Button variant="outline" className="text-blue-200 border-blue-700 hover:bg-blue-700/50">
+                    Iniciar Sesión
+                  </Button>
                 </Link>
-                <Link to="/register" className="text-sm font-medium text-foreground hover:underline">
-                  Registro
+                <Link to="/register">
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                    Registrarse
+                  </Button>
                 </Link>
               </div>
             )}

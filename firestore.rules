@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Función para verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Función para verificar si el usuario es dueño del documento
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Reglas para la colección de balances
+    match /balances/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Reglas para las tasas de cambio (solo lectura para usuarios autenticados)
+    match /exchangeRates/{document=**} {
+      allow read: if isAuthenticated();
+      // Las tasas solo pueden ser actualizadas desde el backend
+      allow write: if false;
+    }
+  }
+}

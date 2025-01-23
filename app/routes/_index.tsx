@@ -1,5 +1,7 @@
 import { Link } from "@remix-run/react";
 import { useEffect, useState } from "react";
+import { firebaseAuth } from "~/lib/firebase/client";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface ExchangeRates {
   usd_to_peso: string;
@@ -18,8 +20,16 @@ export default function Index() {
     btc_to_usd: "0.00"
   });
   const [lastUpdate, setLastUpdate] = useState<string>("--:--");
+  const [firebaseStatus, setFirebaseStatus] = useState<string>("Verificando conexión...");
 
   useEffect(() => {
+    // Verificar conexión con Firebase
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      setFirebaseStatus(user ? `Conectado como: ${user.email}` : "Firebase conectado (no hay sesión)");
+    }, (error) => {
+      setFirebaseStatus(`Error de conexión: ${error.message}`);
+    });
+
     // Simulación de actualización de tasas
     const mockRates = {
       usd_to_peso: "823.50",
@@ -30,6 +40,8 @@ export default function Index() {
     };
     setRatesTyped(mockRates);
     setLastUpdate(new Date().toLocaleTimeString());
+
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -42,8 +54,11 @@ export default function Index() {
             <h1 className="text-5xl font-bold mb-8 bg-gradient-to-r from-white via-blue-400 to-white bg-clip-text text-transparent">
               ECUCONDOR
             </h1>
-            <p className="text-xl text-gray-300 mb-8">
+            <p className="text-xl text-gray-300 mb-4">
               La plataforma más segura para tus transacciones internacionales entre Argentina, Brasil y Ecuador
+            </p>
+            <p className="text-sm text-blue-400 mb-8">
+              {firebaseStatus}
             </p>
             <div className="flex justify-center">
               <input
